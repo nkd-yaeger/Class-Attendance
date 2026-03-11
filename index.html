@@ -3,157 +3,232 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Attendance Tracker</title>
+<title>Attendance</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-  :root {
-    --bg:#0f0e0c;--surface:#1a1917;--surface2:#242220;--border:#2e2c29;
-    --accent:#e8c547;--text:#f0ece4;--text-dim:#8a8478;
-    --present:#4caf7d;--absent:#e85c47;--excused:#7d9ee8;--warn:#e8a347;--radius:6px;
-  }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;}
-  header{padding:22px 36px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:var(--surface);}
-  header h1{font-family:'DM Serif Display',serif;font-size:1.7rem;letter-spacing:-0.02em;}
-  .badge{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--accent);padding:3px 9px;border-radius:3px;}
-  .layout{display:flex;flex:1;overflow:hidden;}
-  .sidebar{width:256px;min-width:256px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;}
-  .sidebar-head{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
-  .sidebar-head h2{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-weight:500;}
-  .btn-add{background:var(--accent);color:#0f0e0c;border:none;padding:5px 11px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;cursor:pointer;transition:opacity .15s;}
-  .btn-add:hover{opacity:.85;}
-  .course-list{flex:1;overflow-y:auto;padding:8px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
-  .course-item{padding:10px 12px;border-radius:var(--radius);cursor:pointer;margin-bottom:3px;transition:background .12s;display:flex;justify-content:space-between;align-items:center;border:1px solid transparent;}
-  .course-item:hover{background:var(--surface2);}
-  .course-item.active{background:var(--surface2);border-color:var(--border);}
-  .cn{font-size:.86rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;}
-  .cc{font-family:'DM Mono',monospace;font-size:.67rem;color:var(--text-dim);}
-  .del-c{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1rem;padding:2px 5px;border-radius:3px;opacity:0;transition:opacity .1s,color .1s;}
-  .course-item:hover .del-c{opacity:1;}
-  .del-c:hover{color:var(--absent);}
-  .main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-  .main-toolbar{padding:14px 26px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface);flex-wrap:wrap;}
-  .sub{font-size:.75rem;color:var(--text-dim);font-family:'DM Mono',monospace;}
-  .btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 13px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;transition:background .12s;white-space:nowrap;}
-  .btn:hover{background:var(--border);}
-  .btn.primary{background:var(--accent);color:#0f0e0c;border-color:var(--accent);font-weight:600;}
-  .btn.primary:hover{opacity:.88;}
-  .btn.danger{color:var(--absent);}
-  .btn.success{background:rgba(76,175,125,.15);color:var(--present);border-color:rgba(76,175,125,.3);font-weight:600;}
-  .btn.open-active{background:rgba(232,197,71,.15);color:var(--accent);border-color:rgba(232,197,71,.4);font-weight:600;}
-  input[type="text"],input[type="date"],input[type="number"]{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 11px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:.84rem;outline:none;transition:border-color .15s;}
-  input:focus{border-color:var(--accent);}
-  .tabs{display:flex;gap:2px;padding:0 26px;background:var(--surface);border-bottom:1px solid var(--border);}
-  .tab{padding:10px 16px;font-size:.81rem;font-weight:500;cursor:pointer;color:var(--text-dim);border-bottom:2px solid transparent;transition:color .12s,border-color .12s;background:none;border-top:none;border-left:none;border-right:none;font-family:'DM Sans',sans-serif;}
-  .tab:hover{color:var(--text);}
-  .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
-  .panel{display:none;flex:1;overflow:auto;padding:26px;flex-direction:column;gap:18px;}
-  .panel.active{display:flex;}
-  .table-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:auto;}
-  table{width:100%;border-collapse:collapse;font-size:.83rem;}
-  thead th{background:var(--surface);padding:9px 13px;text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap;}
-  tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
-  tbody tr:last-child{border-bottom:none;}
-  tbody tr:hover{background:var(--surface2);}
-  tbody td{padding:9px 13px;vertical-align:middle;}
-  .status-btn{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:.74rem;font-weight:600;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:transform .1s;}
-  .status-btn:hover{transform:scale(1.05);}
-  .status-btn.present{background:rgba(76,175,125,.18);color:var(--present);border:1px solid rgba(76,175,125,.3);}
-  .status-btn.absent{background:rgba(232,92,71,.18);color:var(--absent);border:1px solid rgba(232,92,71,.3);}
-  .status-btn.excused{background:rgba(125,158,232,.18);color:var(--excused);border:1px solid rgba(125,158,232,.3);}
-  .dot{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;}
-  .ci-badge{font-family:'DM Mono',monospace;font-size:.67rem;padding:2px 7px;border-radius:20px;}
-  .ci-badge.checked{background:rgba(76,175,125,.15);color:var(--present);border:1px solid rgba(76,175,125,.25);}
-  .ci-badge.outside{background:rgba(232,163,71,.15);color:var(--warn);border:1px solid rgba(232,163,71,.3);}
-  .ci-badge.pending{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);}
-  /* MODALS */
-  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:200;backdrop-filter:blur(6px);}
-  .modal-overlay.open{display:flex;}
-  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:28px 32px;width:400px;max-width:95vw;display:flex;flex-direction:column;gap:14px;animation:mIn .18s ease;}
-  @keyframes mIn{from{opacity:0;transform:scale(.95) translateY(-8px);}to{opacity:1;transform:scale(1) translateY(0);}}
-  .modal h3{font-family:'DM Serif Display',serif;font-size:1.2rem;}
-  .modal label{font-size:.77rem;color:var(--text-dim);display:block;margin-bottom:4px;}
-  .modal input{width:100%;}
-  .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
-  .field-row{display:flex;gap:8px;}
-  .field-row input{flex:1;}
-  .gps-row{display:flex;gap:8px;align-items:flex-end;}
-  .gps-row .btn{padding:7px 10px;font-size:.78rem;}
-  /* GPS info box inside modal */
-  .gps-info{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;font-family:'DM Mono',monospace;font-size:.72rem;color:var(--text-dim);display:none;}
-  .gps-info.show{display:block;}
-  .gps-info.ok{border-color:rgba(76,175,125,.3);color:var(--present);}
-  .gps-info.err{border-color:rgba(232,92,71,.3);color:var(--absent);}
-  /* QR modal */
-  .qr-modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px;width:480px;max-width:95vw;display:flex;flex-direction:column;align-items:center;gap:15px;animation:mIn .18s ease;text-align:center;}
-  .qr-box{background:#fff;padding:14px;border-radius:10px;display:inline-block;}
-  .qr-live{display:flex;align-items:center;gap:7px;background:rgba(76,175,125,.12);border:1px solid rgba(76,175,125,.3);color:var(--present);border-radius:20px;padding:5px 14px;font-size:.78rem;font-weight:600;}
-  .pulse{width:8px;height:8px;border-radius:50%;background:var(--present);animation:pulse 1.4s infinite;flex-shrink:0;}
-  @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.5);}}
-  .ci-names{max-height:120px;overflow-y:auto;width:100%;text-align:left;scrollbar-width:thin;}
-  .ci-name-row{padding:6px 10px;border-radius:4px;background:var(--surface2);margin-bottom:4px;font-size:.81rem;display:flex;align-items:center;gap:8px;}
-  .ci-name-row .gps-ok{color:var(--present);font-size:.75rem;}
-  .ci-name-row .gps-warn{color:var(--warn);font-size:.75rem;}
-  .gps-shield{display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(125,158,232,.1);border:1px solid rgba(125,158,232,.25);border-radius:20px;font-size:.75rem;color:var(--excused);font-weight:600;}
-  /* STUDENT PAGE */
-  #checkinPage{display:none;position:fixed;inset:0;background:var(--bg);z-index:300;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:30px;}
-  #checkinPage.show{display:flex;}
-  .ci-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px 34px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:15px;}
-  .ci-card h2{font-family:'DM Serif Display',serif;font-size:1.5rem;text-align:center;}
-  .ci-sub{text-align:center;font-size:.8rem;color:var(--text-dim);}
-  .ci-name-input{width:100%;font-size:1rem;padding:11px 13px;}
-  .ci-submit{width:100%;padding:12px;font-size:.95rem;font-weight:600;border-radius:var(--radius);background:var(--accent);color:#0f0e0c;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
-  .ci-submit:hover{opacity:.88;}
-  .ci-submit:disabled{opacity:.4;cursor:not-allowed;}
-  .ci-result{text-align:center;padding:13px;border-radius:8px;font-weight:600;font-size:.88rem;line-height:1.5;}
-  .ci-result.ok{background:rgba(76,175,125,.15);color:var(--present);border:1px solid rgba(76,175,125,.3);}
-  .ci-result.err{background:rgba(232,92,71,.15);color:var(--absent);border:1px solid rgba(232,92,71,.3);}
-  .ci-result.warn{background:rgba(232,163,71,.12);color:var(--warn);border:1px solid rgba(232,163,71,.3);}
-  .ci-result.loading{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);}
-  .closed-msg{background:rgba(232,92,71,.1);border:1px solid rgba(232,92,71,.3);color:var(--absent);border-radius:10px;padding:16px 18px;text-align:center;font-weight:600;}
-  .gps-step{display:flex;flex-direction:column;gap:10px;}
-  .gps-step-title{font-size:.78rem;color:var(--text-dim);font-weight:500;}
-  .gps-progress{height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
-  .gps-progress-fill{height:100%;background:var(--excused);border-radius:2px;animation:gpsload 1.5s ease-in-out infinite alternate;}
-  @keyframes gpsload{from{width:20%;}to{width:90%;}}
-  /* open bar */
-  .open-bar{display:flex;align-items:center;gap:9px;padding:9px 13px;background:rgba(76,175,125,.07);border:1px solid rgba(76,175,125,.2);border-radius:var(--radius);font-size:.81rem;flex-wrap:wrap;}
-  .open-bar .olabel{color:var(--present);font-weight:600;flex:1;}
-  .gps-tag{font-family:'DM Mono',monospace;font-size:.68rem;background:rgba(125,158,232,.12);color:var(--excused);border:1px solid rgba(125,158,232,.25);padding:2px 8px;border-radius:20px;}
-  /* stats */
-  .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:12px;}
-  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
-  .stat-label{font-size:.67rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);margin-bottom:5px;}
-  .stat-value{font-family:'DM Serif Display',serif;font-size:1.85rem;line-height:1;}
-  .stat-value.green{color:var(--present);}.stat-value.blue{color:var(--excused);}
-  .progress-bar{height:4px;background:var(--border);border-radius:2px;margin-top:7px;overflow:hidden;}
-  .progress-fill{height:100%;border-radius:2px;transition:width .4s;}
-  .pct-badge{font-family:'DM Mono',monospace;font-size:.74rem;padding:2px 7px;border-radius:4px;font-weight:500;}
-  .pct-badge.good{background:rgba(76,175,125,.15);color:var(--present);}
-  .pct-badge.warn{background:rgba(232,196,71,.15);color:var(--accent);}
-  .pct-badge.bad{background:rgba(232,92,71,.15);color:var(--absent);}
-  .st-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;display:flex;align-items:center;gap:12px;}
-  .avatar{width:32px;height:32px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.77rem;color:var(--accent);flex-shrink:0;border:1px solid var(--border);}
-  .del-btn{margin-left:auto;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.9rem;padding:4px;border-radius:3px;transition:color .1s;}
-  .del-btn:hover{color:var(--absent);}
-  .empty{flex:0;display:flex;flex-direction:column;align-items:center;gap:9px;color:var(--text-dim);padding:44px 30px;text-align:center;}
-  .empty .icon{font-size:2.4rem;opacity:.4;}
-  .empty h3{font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--text);}
-  .empty p{font-size:.82rem;max-width:260px;line-height:1.6;}
-  ::-webkit-scrollbar{width:5px;height:5px;}
-  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+:root{
+  --bg:#0f0e0c;--surface:#1a1917;--surface2:#242220;--border:#2e2c29;
+  --accent:#e8c547;--text:#f0ece4;--text-dim:#8a8478;
+  --present:#4caf7d;--absent:#e85c47;--excused:#7d9ee8;--warn:#e8a347;--radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+
+/* ── SHARED ── */
+.screen{display:none;min-height:100vh;}
+.screen.active{display:flex;flex-direction:column;}
+.btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:.83rem;cursor:pointer;transition:background .12s;white-space:nowrap;}
+.btn:hover{background:var(--border);}
+.btn.primary{background:var(--accent);color:#0f0e0c;border-color:var(--accent);font-weight:700;}
+.btn.primary:hover{opacity:.88;}
+.btn.danger{color:var(--absent);}
+.btn.success{background:rgba(76,175,125,.15);color:var(--present);border-color:rgba(76,175,125,.3);font-weight:600;}
+.btn.open-active{background:rgba(232,197,71,.15);color:var(--accent);border-color:rgba(232,197,71,.4);font-weight:600;}
+input[type="text"],input[type="date"],input[type="number"],input[type="password"]{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:9px 13px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;transition:border-color .15s;
+}
+input:focus{border-color:var(--accent);}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:400;backdrop-filter:blur(8px);}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px 34px;width:400px;max-width:95vw;display:flex;flex-direction:column;gap:15px;animation:mIn .18s ease;}
+@keyframes mIn{from{opacity:0;transform:scale(.95) translateY(-10px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.modal h3{font-family:'DM Serif Display',serif;font-size:1.25rem;}
+.modal label{font-size:.77rem;color:var(--text-dim);display:block;margin-bottom:5px;}
+.modal input{width:100%;}
+.modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:4px;}
+
+/* ══════════════════════════════
+   STUDENT PORTAL
+══════════════════════════════ */
+#studentPortal{
+  align-items:center;justify-content:center;
+  padding:30px 20px;gap:0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(232,197,71,.06) 0%, transparent 60%), var(--bg);
+}
+.portal-wrap{width:100%;max-width:460px;display:flex;flex-direction:column;gap:24px;}
+.portal-header{text-align:center;}
+.portal-header h1{font-family:'DM Serif Display',serif;font-size:2.2rem;letter-spacing:-.02em;margin-bottom:6px;}
+.portal-header p{font-size:.85rem;color:var(--text-dim);}
+.portal-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 30px;display:flex;flex-direction:column;gap:18px;}
+.portal-card h2{font-family:'DM Serif Display',serif;font-size:1.2rem;}
+
+/* course selector grid */
+.course-grid{display:flex;flex-direction:column;gap:8px;}
+.course-tile{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:13px 16px;cursor:pointer;transition:border-color .15s,background .12s;display:flex;align-items:center;justify-content:space-between;}
+.course-tile:hover{border-color:var(--accent);background:rgba(232,197,71,.05);}
+.course-tile.selected{border-color:var(--accent);background:rgba(232,197,71,.08);}
+.tile-name{font-weight:600;font-size:.9rem;}
+.tile-code{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--text-dim);margin-top:2px;}
+.tile-status{font-size:.72rem;font-family:'DM Mono',monospace;}
+.tile-status.open{color:var(--present);}
+.tile-status.closed{color:var(--text-dim);}
+.no-courses{text-align:center;padding:24px;color:var(--text-dim);font-size:.85rem;}
+
+/* step indicator */
+.steps{display:flex;gap:6px;align-items:center;justify-content:center;}
+.step-dot{width:7px;height:7px;border-radius:50%;background:var(--border);transition:background .2s;}
+.step-dot.active{background:var(--accent);}
+
+/* gps step */
+.gps-loading{display:flex;flex-direction:column;gap:10px;text-align:center;padding:10px 0;}
+.gps-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;}
+.gps-bar-fill{height:100%;background:var(--excused);border-radius:2px;animation:gload 1.5s ease-in-out infinite alternate;}
+@keyframes gload{from{width:15%;}to{width:92%;}}
+
+/* result */
+.ci-result{text-align:center;padding:15px;border-radius:10px;font-weight:600;font-size:.9rem;line-height:1.55;}
+.ci-result.ok{background:rgba(76,175,125,.15);color:var(--present);border:1px solid rgba(76,175,125,.3);}
+.ci-result.err{background:rgba(232,92,71,.15);color:var(--absent);border:1px solid rgba(232,92,71,.3);}
+.ci-result.warn{background:rgba(232,163,71,.12);color:var(--warn);border:1px solid rgba(232,163,71,.3);}
+.ci-result.loading{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);}
+
+/* admin link at bottom */
+.portal-footer{text-align:center;padding-top:4px;}
+.admin-link{font-size:.72rem;color:var(--text-dim);cursor:pointer;text-decoration:underline;text-underline-offset:3px;opacity:.5;transition:opacity .15s;}
+.admin-link:hover{opacity:1;}
+
+/* ══════════════════════════════
+   ADMIN DASHBOARD
+══════════════════════════════ */
+#adminDashboard{flex-direction:column;}
+.adm-header{padding:18px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:var(--surface);}
+.adm-header h1{font-family:'DM Serif Display',serif;font-size:1.55rem;letter-spacing:-.02em;flex:1;}
+.badge{font-family:'DM Mono',monospace;font-size:.67rem;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--accent);padding:3px 9px;border-radius:3px;}
+.adm-layout{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:250px;min-width:250px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.sidebar-head{padding:14px 16px 11px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.sidebar-head h2{font-size:.67rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-weight:500;}
+.btn-add{background:var(--accent);color:#0f0e0c;border:none;padding:5px 10px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:.77rem;font-weight:700;cursor:pointer;transition:opacity .15s;}
+.btn-add:hover{opacity:.85;}
+.course-list{flex:1;overflow-y:auto;padding:7px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.course-item{padding:10px 11px;border-radius:var(--radius);cursor:pointer;margin-bottom:3px;transition:background .12s;display:flex;justify-content:space-between;align-items:center;border:1px solid transparent;}
+.course-item:hover{background:var(--surface2);}
+.course-item.active{background:var(--surface2);border-color:var(--border);}
+.cn{font-size:.85rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:148px;}
+.cc{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--text-dim);}
+.del-c{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:1rem;padding:2px 5px;border-radius:3px;opacity:0;transition:opacity .1s,color .1s;}
+.course-item:hover .del-c{opacity:1;}
+.del-c:hover{color:var(--absent);}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.main-toolbar{padding:13px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px;background:var(--surface);flex-wrap:wrap;}
+.sub{font-size:.74rem;color:var(--text-dim);font-family:'DM Mono',monospace;}
+.tabs{display:flex;gap:2px;padding:0 24px;background:var(--surface);border-bottom:1px solid var(--border);}
+.tab{padding:9px 15px;font-size:.8rem;font-weight:500;cursor:pointer;color:var(--text-dim);border-bottom:2px solid transparent;transition:color .12s,border-color .12s;background:none;border-top:none;border-left:none;border-right:none;font-family:'DM Sans',sans-serif;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.panel{display:none;flex:1;overflow:auto;padding:24px;flex-direction:column;gap:17px;}
+.panel.active{display:flex;}
+.table-wrap{border:1px solid var(--border);border-radius:var(--radius);overflow:auto;}
+table{width:100%;border-collapse:collapse;font-size:.82rem;}
+thead th{background:var(--surface);padding:8px 12px;text-align:left;font-size:.67rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;}
+tbody tr:last-child{border-bottom:none;}
+tbody tr:hover{background:var(--surface2);}
+tbody td{padding:8px 12px;vertical-align:middle;}
+.status-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:20px;font-size:.73rem;font-weight:600;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:transform .1s;}
+.status-btn:hover{transform:scale(1.05);}
+.status-btn.present{background:rgba(76,175,125,.18);color:var(--present);border:1px solid rgba(76,175,125,.3);}
+.status-btn.absent{background:rgba(232,92,71,.18);color:var(--absent);border:1px solid rgba(232,92,71,.3);}
+.status-btn.excused{background:rgba(125,158,232,.18);color:var(--excused);border:1px solid rgba(125,158,232,.3);}
+.dot{width:5px;height:5px;border-radius:50%;background:currentColor;display:inline-block;}
+.ci-badge{font-family:'DM Mono',monospace;font-size:.66rem;padding:2px 7px;border-radius:20px;}
+.ci-badge.checked{background:rgba(76,175,125,.15);color:var(--present);border:1px solid rgba(76,175,125,.25);}
+.ci-badge.pending{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);}
+.gps-row{display:flex;gap:8px;align-items:flex-end;}
+.gps-row .btn{padding:7px 10px;font-size:.78rem;}
+.gps-info{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;font-family:'DM Mono',monospace;font-size:.71rem;color:var(--text-dim);display:none;}
+.gps-info.show{display:block;}
+.gps-info.ok{border-color:rgba(76,175,125,.3);color:var(--present);}
+.gps-info.err{border-color:rgba(232,92,71,.3);color:var(--absent);}
+.qr-modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:470px;max-width:95vw;display:flex;flex-direction:column;align-items:center;gap:14px;animation:mIn .18s ease;text-align:center;}
+.qr-box{background:#fff;padding:14px;border-radius:10px;display:inline-block;}
+.qr-live{display:flex;align-items:center;gap:7px;background:rgba(76,175,125,.12);border:1px solid rgba(76,175,125,.3);color:var(--present);border-radius:20px;padding:5px 13px;font-size:.77rem;font-weight:600;}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--present);animation:pulse 1.4s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.5);}}
+.ci-names-list{max-height:110px;overflow-y:auto;width:100%;text-align:left;scrollbar-width:thin;}
+.ci-name-row{padding:5px 9px;border-radius:4px;background:var(--surface2);margin-bottom:3px;font-size:.8rem;display:flex;align-items:center;gap:7px;}
+.gps-shield{display:flex;align-items:center;gap:6px;padding:5px 11px;background:rgba(125,158,232,.1);border:1px solid rgba(125,158,232,.25);border-radius:20px;font-size:.74rem;color:var(--excused);font-weight:600;}
+.open-bar{display:flex;align-items:center;gap:9px;padding:9px 13px;background:rgba(76,175,125,.07);border:1px solid rgba(76,175,125,.2);border-radius:var(--radius);font-size:.8rem;flex-wrap:wrap;}
+.open-bar .olabel{color:var(--present);font-weight:600;flex:1;}
+.gps-tag{font-family:'DM Mono',monospace;font-size:.67rem;background:rgba(125,158,232,.12);color:var(--excused);border:1px solid rgba(125,158,232,.25);padding:2px 8px;border-radius:20px;}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:11px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;}
+.stat-label{font-size:.66rem;text-transform:uppercase;letter-spacing:.1em;color:var(--text-dim);margin-bottom:5px;}
+.stat-value{font-family:'DM Serif Display',serif;font-size:1.8rem;line-height:1;}
+.stat-value.green{color:var(--present);}.stat-value.blue{color:var(--excused);}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;margin-top:7px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:2px;transition:width .4s;}
+.pct-badge{font-family:'DM Mono',monospace;font-size:.73rem;padding:2px 7px;border-radius:4px;font-weight:500;}
+.pct-badge.good{background:rgba(76,175,125,.15);color:var(--present);}
+.pct-badge.warn{background:rgba(232,196,71,.15);color:var(--accent);}
+.pct-badge.bad{background:rgba(232,92,71,.15);color:var(--absent);}
+.st-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:9px 13px;display:flex;align-items:center;gap:11px;}
+.avatar{width:31px;height:31px;border-radius:50%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.76rem;color:var(--accent);flex-shrink:0;border:1px solid var(--border);}
+.del-btn{margin-left:auto;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.88rem;padding:4px;border-radius:3px;transition:color .1s;}
+.del-btn:hover{color:var(--absent);}
+.empty{flex:0;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text-dim);padding:40px 28px;text-align:center;}
+.empty .icon{font-size:2.3rem;opacity:.4;}
+.empty h3{font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--text);}
+.empty p{font-size:.81rem;max-width:250px;line-height:1.6;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 </style>
 </head>
 <body>
 
-<!-- ══ TEACHER APP ══ -->
-<div id="teacherApp">
-  <header>
+<!-- ══════════════════════════════════════
+     SCREEN 1 — STUDENT PORTAL (default)
+══════════════════════════════════════ -->
+<div id="studentPortal" class="screen active">
+  <div class="portal-wrap">
+    <div class="portal-header">
+      <h1>Check In</h1>
+      <p>Select your course and enter your name to mark attendance</p>
+    </div>
+
+    <!-- STEP 1: pick course -->
+    <div class="portal-card" id="stepCourse">
+      <h2>Select your course</h2>
+      <div class="course-grid" id="courseGrid">
+        <div class="no-courses">Loading courses…</div>
+      </div>
+    </div>
+
+    <!-- STEP 2: enter name + GPS + submit (hidden until course chosen) -->
+    <div class="portal-card" id="stepName" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px">
+        <button class="btn" style="padding:5px 10px;font-size:.78rem" onclick="backToCourseSelect()">← Back</button>
+        <div>
+          <div style="font-weight:600;font-size:.95rem" id="selectedCourseName"></div>
+          <div style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--text-dim)" id="selectedSessionInfo"></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <label style="font-size:.78rem;color:var(--text-dim)">Your full name</label>
+        <input type="text" id="ciNameInput" placeholder="e.g. Jane Smith" autocomplete="name" style="font-size:1rem;padding:11px 13px;">
+      </div>
+      <button class="btn primary" id="ciSubmitBtn" style="padding:12px;font-size:.95rem">Check In →</button>
+      <div id="ciResultMsg" style="display:none"></div>
+    </div>
+
+    <div class="portal-footer">
+      <span class="admin-link" onclick="openAdminLogin()">Administrator login</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     SCREEN 2 — ADMIN DASHBOARD
+══════════════════════════════════════ -->
+<div id="adminDashboard" class="screen">
+  <div class="adm-header">
     <h1>Attendance Tracker</h1>
-    <span class="badge">University</span>
-  </header>
-  <div class="layout">
+    <span class="badge">Admin</span>
+    <button class="btn" style="margin-left:auto;font-size:.78rem" onclick="adminLogout()">← Student View</button>
+  </div>
+  <div class="adm-layout">
     <div class="sidebar">
       <div class="sidebar-head">
         <h2>Courses</h2>
@@ -169,17 +244,38 @@
   </div>
 </div>
 
-<!-- ══ STUDENT CHECK-IN PAGE ══ -->
-<div id="checkinPage">
-  <div style="text-align:center">
-    <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:3px" id="ciCourseName"></div>
-    <div style="font-family:'DM Mono',monospace;font-size:.71rem;color:var(--text-dim)" id="ciSessionLabel"></div>
+<!-- ══════ MODALS ══════ -->
+
+<!-- Admin login -->
+<div class="modal-overlay" id="adminLoginModal">
+  <div class="modal" style="width:340px">
+    <h3>Administrator Login</h3>
+    <div><label>PIN</label><input type="password" id="adminPinInput" placeholder="Enter admin PIN" maxlength="20"></div>
+    <div id="adminLoginError" style="display:none;font-size:.78rem;color:var(--absent)"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeAdminLogin()">Cancel</button>
+      <button class="btn primary" onclick="submitAdminLogin()">Login</button>
+    </div>
+    <div style="font-size:.72rem;color:var(--text-dim);text-align:center;margin-top:-4px">First time? Default PIN is <span style="font-family:'DM Mono',monospace;color:var(--accent)">1234</span> — change it in settings.</div>
   </div>
-  <div class="ci-card" id="ciCardWrap"></div>
-  <div style="font-size:.7rem;color:var(--text-dim)">Attendance Tracker</div>
 </div>
 
-<!-- ══ COURSE MODAL ══ -->
+<!-- Change PIN modal -->
+<div class="modal-overlay" id="changePinModal">
+  <div class="modal" style="width:340px">
+    <h3>Change Admin PIN</h3>
+    <div><label>Current PIN</label><input type="password" id="oldPin" placeholder="Current PIN"></div>
+    <div><label>New PIN</label><input type="password" id="newPin" placeholder="New PIN (min 4 chars)"></div>
+    <div><label>Confirm New PIN</label><input type="password" id="confirmPin" placeholder="Repeat new PIN"></div>
+    <div id="pinChangeError" style="display:none;font-size:.78rem;color:var(--absent)"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('changePinModal').classList.remove('open')">Cancel</button>
+      <button class="btn primary" onclick="submitChangePin()">Save PIN</button>
+    </div>
+  </div>
+</div>
+
+<!-- Course modal -->
 <div class="modal-overlay" id="courseModal">
   <div class="modal">
     <h3>New Course</h3>
@@ -192,7 +288,7 @@
   </div>
 </div>
 
-<!-- ══ STUDENT MODAL ══ -->
+<!-- Student modal -->
 <div class="modal-overlay" id="studentModal">
   <div class="modal">
     <h3>Add Student</h3>
@@ -205,34 +301,29 @@
   </div>
 </div>
 
-<!-- ══ OPEN CHECK-IN MODAL (GPS setup) ══ -->
+<!-- Open check-in GPS modal -->
 <div class="modal-overlay" id="openCheckinModal">
   <div class="modal" style="width:440px">
     <h3>Open Check-in</h3>
-    <p style="font-size:.82rem;color:var(--text-dim);line-height:1.6">Set the venue location so only students physically present can check in.</p>
-
-    <!-- GPS capture -->
+    <p style="font-size:.82rem;color:var(--text-dim);line-height:1.6">Optionally set the venue location so only students physically present can check in.</p>
     <div>
       <label>Venue GPS Coordinates</label>
       <div class="gps-row">
         <input type="text" id="gpsLat" placeholder="Latitude" style="flex:1">
         <input type="text" id="gpsLng" placeholder="Longitude" style="flex:1">
-        <button class="btn" onclick="captureTeacherGps()">📍 Use My Location</button>
+        <button class="btn" onclick="captureTeacherGps()">📍 My Location</button>
       </div>
       <div class="gps-info" id="gpsCapInfo"></div>
     </div>
-
     <div>
       <label>Allowed Radius (metres)</label>
-      <input type="number" id="gpsRadius" value="100" min="10" max="2000" style="width:120px">
-      <span style="font-size:.78rem;color:var(--text-dim);margin-left:8px">Students must be within this distance</span>
+      <input type="number" id="gpsRadius" value="100" min="10" max="2000" style="width:110px">
+      <span style="font-size:.77rem;color:var(--text-dim);margin-left:8px">Students must be within this distance</span>
     </div>
-
     <div style="display:flex;align-items:center;gap:8px">
       <input type="checkbox" id="gpsRequired" checked style="width:auto;accent-color:var(--accent)">
-      <label for="gpsRequired" style="font-size:.82rem;color:var(--text);margin:0;cursor:pointer">Require GPS — block check-in if student is outside radius</label>
+      <label for="gpsRequired" style="font-size:.81rem;color:var(--text);margin:0;cursor:pointer">Require GPS — block check-in if outside radius</label>
     </div>
-
     <div class="modal-actions">
       <button class="btn" onclick="closeOpenCheckinModal()">Cancel</button>
       <button class="btn primary" onclick="confirmOpenCheckin()">📲 Open Check-in</button>
@@ -240,193 +331,277 @@
   </div>
 </div>
 
-<!-- ══ QR MODAL ══ -->
+<!-- QR modal -->
 <div class="modal-overlay" id="qrModal">
   <div class="qr-modal">
     <div>
-      <div style="font-family:'DM Serif Display',serif;font-size:1.25rem" id="qrTitle"></div>
-      <div style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--text-dim)" id="qrSub"></div>
+      <div style="font-family:'DM Serif Display',serif;font-size:1.2rem" id="qrTitle"></div>
+      <div style="font-family:'DM Mono',monospace;font-size:.71rem;color:var(--text-dim)" id="qrSub"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center">
       <div class="qr-live"><div class="pulse"></div> Check-in is OPEN</div>
       <div class="gps-shield" id="qrGpsTag"></div>
     </div>
     <div class="qr-box" id="qrcode"></div>
-    <div style="font-size:.77rem;color:var(--text-dim)">Students scan this QR code to check in on their phones</div>
+    <div style="font-size:.76rem;color:var(--text-dim)">Students scan to check in on their phones</div>
     <div style="width:100%">
-      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);margin-bottom:7px">Checked in (<span id="qrCount">0</span>)</div>
-      <div class="ci-names" id="qrNames"></div>
+      <div style="font-size:.67rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);margin-bottom:7px">Checked in (<span id="qrCount">0</span>)</div>
+      <div class="ci-names-list" id="qrNames"></div>
     </div>
     <button class="btn danger" style="width:100%;padding:10px" onclick="closeCheckin()">⏹ Close Check-in</button>
   </div>
 </div>
 
 <script>
-// ══════════════════════════════════════
-// DATA
-// ══════════════════════════════════════
-let data = JSON.parse(localStorage.getItem('attTracker4')||'null') || {courses:[]};
-let activeCourseId=null, activeTab='attendance', activeSessionId=null;
-let pollInterval=null;
+// ══════════════════════════════════════════
+// DATA & AUTH
+// ══════════════════════════════════════════
+let data = JSON.parse(localStorage.getItem('att5')||'null') || {courses:[], pin: '1234'};
+if (!data.pin) data.pin = '1234';
+let adminAuthed = false;
 
-function save(){localStorage.setItem('attTracker4',JSON.stringify(data));}
-function uid(){return Math.random().toString(36).slice(2,10);}
-function getCourse(id){return data.courses.find(c=>c.id===(id||activeCourseId));}
-function getSession(){const c=getCourse();return c?c.sessions.find(s=>s.id===activeSessionId):null;}
-function fmtDate(d){return d?new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';};
+// Admin session persists for tab lifetime only (sessionStorage)
+if (sessionStorage.getItem('adminAuthed') === 'yes') adminAuthed = true;
 
-// ══════════════════════════════════════
+let activeCourseId=null, activeTab='attendance', activeSessionId=null, pollInterval=null;
+
+// State for student portal
+let portalCourseId=null, portalSessionId=null, portalGpsResult=null;
+
+function save(){ localStorage.setItem('att5', JSON.stringify(data)); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function getCourse(id){ return data.courses.find(c=>c.id===(id||activeCourseId)); }
+function getSession(){ const c=getCourse(); return c?c.sessions.find(s=>s.id===activeSessionId):null; }
+function fmtDate(d){ return d?new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'';}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ══════════════════════════════════════════
+// ADMIN LOGIN / LOGOUT
+// ══════════════════════════════════════════
+function openAdminLogin(){
+  document.getElementById('adminPinInput').value='';
+  document.getElementById('adminLoginError').style.display='none';
+  document.getElementById('adminLoginModal').classList.add('open');
+  setTimeout(()=>document.getElementById('adminPinInput').focus(),60);
+}
+function closeAdminLogin(){ document.getElementById('adminLoginModal').classList.remove('open'); }
+
+function submitAdminLogin(){
+  const pin = document.getElementById('adminPinInput').value;
+  if(pin === data.pin){
+    adminAuthed=true;
+    sessionStorage.setItem('adminAuthed','yes');
+    closeAdminLogin();
+    enterAdminDashboard();
+  } else {
+    const err=document.getElementById('adminLoginError');
+    err.textContent='Incorrect PIN. Try again.';
+    err.style.display='block';
+    document.getElementById('adminPinInput').value='';
+    document.getElementById('adminPinInput').focus();
+  }
+}
+
+function adminLogout(){
+  adminAuthed=false;
+  sessionStorage.removeItem('adminAuthed');
+  showScreen('studentPortal');
+  renderPortal();
+}
+
+function enterAdminDashboard(){
+  showScreen('adminDashboard');
+  renderSidebar();
+  if(data.courses.length) selectCourse(data.courses[0].id); else renderMain();
+}
+
+// ══════════════════════════════════════════
+// CHANGE PIN
+// ══════════════════════════════════════════
+function openChangePinModal(){
+  ['oldPin','newPin','confirmPin'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pinChangeError').style.display='none';
+  document.getElementById('changePinModal').classList.add('open');
+}
+function submitChangePin(){
+  const old=document.getElementById('oldPin').value;
+  const n=document.getElementById('newPin').value;
+  const c=document.getElementById('confirmPin').value;
+  const err=document.getElementById('pinChangeError');
+  if(old!==data.pin){err.textContent='Current PIN is incorrect.';err.style.display='block';return;}
+  if(n.length<4){err.textContent='New PIN must be at least 4 characters.';err.style.display='block';return;}
+  if(n!==c){err.textContent='New PINs do not match.';err.style.display='block';return;}
+  data.pin=n; save();
+  document.getElementById('changePinModal').classList.remove('open');
+  alert('PIN changed successfully.');
+}
+
+// ══════════════════════════════════════════
 // GPS HELPERS
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 function getGps(){
   return new Promise((res,rej)=>{
     if(!navigator.geolocation){rej(new Error('Geolocation not supported'));return;}
     navigator.geolocation.getCurrentPosition(
-      p=>res({lat:p.coords.latitude, lng:p.coords.longitude, acc:Math.round(p.coords.accuracy)}),
+      p=>res({lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy)}),
       e=>rej(e),
-      {enableHighAccuracy:true, timeout:12000, maximumAge:0}
+      {enableHighAccuracy:true,timeout:12000,maximumAge:0}
     );
   });
 }
-
-// Haversine distance in metres
 function distMetres(lat1,lng1,lat2,lng2){
-  const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
-// ══════════════════════════════════════
-// CHECK-IN MODE (student-facing)
-// ══════════════════════════════════════
-function isCheckinMode(){return new URLSearchParams(location.search).has('checkin');}
+// ══════════════════════════════════════════
+// STUDENT PORTAL
+// ══════════════════════════════════════════
+function renderPortal(){
+  const grid = document.getElementById('courseGrid');
+  // Show only courses that have at least one open session
+  const openCourses = data.courses.filter(c=>c.sessions.some(s=>s.checkinOpen));
+  const allCourses = data.courses;
 
-function showCheckinPage(){
-  const p=new URLSearchParams(location.search);
-  const sessionId=p.get('checkin'), courseId=p.get('course');
-  document.getElementById('teacherApp').style.display='none';
-  document.getElementById('checkinPage').classList.add('show');
-
-  const course=getCourse(courseId);
-  const session=course?course.sessions.find(s=>s.id===sessionId):null;
-  document.getElementById('ciCourseName').textContent=course?course.name+(course.code?` — ${course.code}`:''): 'Unknown Course';
-  document.getElementById('ciSessionLabel').textContent=session?`${session.label} · ${fmtDate(session.date)}`:'';
-
-  const wrap=document.getElementById('ciCardWrap');
-  if(!course||!session){wrap.innerHTML=`<div class="closed-msg">❌ Invalid check-in link.</div>`;return;}
-  if(!session.checkinOpen){
-    wrap.innerHTML=`<div style="text-align:center;padding:12px 0"><div style="font-size:2.4rem;margin-bottom:10px">🔒</div><div style="font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:6px">Check-in is closed</div><div style="font-size:.83rem;color:var(--text-dim)">The teacher hasn't opened check-in yet, or it's been closed.</div></div>`;
+  if(!allCourses.length){
+    grid.innerHTML=`<div class="no-courses">No courses available yet.<br>Ask your administrator to set up courses.</div>`;
     return;
   }
-  startStudentCheckin(wrap, course, session);
+
+  grid.innerHTML = allCourses.map(c=>{
+    const openSession = c.sessions.find(s=>s.checkinOpen);
+    return`<div class="course-tile ${openSession?'':''}${portalCourseId===c.id?'selected':''}" onclick="selectPortalCourse('${c.id}')">
+      <div>
+        <div class="tile-name">${c.name}</div>
+        ${c.code?`<div class="tile-code">${c.code}</div>`:''}
+      </div>
+      <div class="tile-status ${openSession?'open':'closed'}">${openSession?'● Open':'○ Closed'}</div>
+    </div>`;
+  }).join('');
 }
 
-async function startStudentCheckin(wrap, course, session){
-  // If GPS required, get location first before showing form
-  if(session.gps && session.gps.required){
-    wrap.innerHTML=`
-      <h2>Check In</h2>
-      <div class="ci-sub">${session.label} · ${fmtDate(session.date)}</div>
-      <div class="gps-step">
-        <div class="gps-step-title">📍 Verifying your location…</div>
-        <div class="gps-progress"><div class="gps-progress-fill"></div></div>
-        <div style="font-size:.76rem;color:var(--text-dim)">Please allow location access when prompted by your browser.</div>
-      </div>`;
+function selectPortalCourse(courseId){
+  const course = data.courses.find(c=>c.id===courseId);
+  if(!course) return;
+  const openSession = course.sessions.find(s=>s.checkinOpen);
 
-    try{
-      const pos=await getGps();
-      const dist=Math.round(distMetres(pos.lat,pos.lng,session.gps.lat,session.gps.lng));
-      const inside=dist<=session.gps.radius;
+  portalCourseId = courseId;
+  portalSessionId = openSession ? openSession.id : null;
+  portalGpsResult = null;
 
-      if(!inside){
-        wrap.innerHTML=`
-          <h2>Check In</h2>
-          <div class="ci-sub">${session.label} · ${fmtDate(session.date)}</div>
-          <div class="ci-result err">
-            📍 You appear to be <strong>${dist}m</strong> from the venue.<br>
-            You must be within <strong>${session.gps.radius}m</strong> to check in.<br>
-            <span style="font-size:.8rem;font-weight:400;opacity:.8">Make sure you're at the correct location and try again.</span>
-          </div>
-          <button class="ci-submit" onclick="startStudentCheckin(document.getElementById('ciCardWrap'),${JSON.stringify(course).replace(/"/g,'&quot;')},${JSON.stringify(session).replace(/"/g,'&quot;')})">↺ Try Again</button>`;
-        return;
-      }
-      // Inside — render form with gps result stored
-      renderCheckinForm(wrap, course, session, {lat:pos.lat, lng:pos.lng, dist, acc:pos.acc, verified:true});
-    } catch(e){
-      // GPS failed
-      wrap.innerHTML=`
-        <h2>Check In</h2>
-        <div class="ci-sub">${session.label} · ${fmtDate(session.date)}</div>
-        <div class="ci-result warn">
-          ⚠️ Could not access your location.<br>
-          <span style="font-size:.8rem;font-weight:400">Please enable location permissions and try again.</span>
-        </div>
-        <button class="ci-submit" onclick="startStudentCheckin(document.getElementById('ciCardWrap'), getCourseById('${course.id}'), getSessionById('${course.id}','${session.id}'))">↺ Try Again</button>`;
-    }
+  document.getElementById('selectedCourseName').textContent = course.name + (course.code?` — ${course.code}`:'');
+  document.getElementById('selectedSessionInfo').textContent = openSession
+    ? `${openSession.label} · ${fmtDate(openSession.date)}`
+    : 'No open session — check-in is currently closed';
+
+  document.getElementById('stepCourse').style.display='none';
+  document.getElementById('stepName').style.display='flex';
+
+  const resultDiv = document.getElementById('ciResultMsg');
+  resultDiv.style.display='none';
+  const nameInput = document.getElementById('ciNameInput');
+  nameInput.value='';
+  nameInput.disabled=false;
+  document.getElementById('ciSubmitBtn').style.display='block';
+  document.getElementById('ciSubmitBtn').disabled=false;
+
+  if(!openSession){
+    resultDiv.style.display='block';
+    resultDiv.className='ci-result warn';
+    resultDiv.innerHTML='🔒 Check-in for this course is currently closed.<br><span style="font-size:.8rem;font-weight:400">Your teacher needs to open a session first.</span>';
+    document.getElementById('ciSubmitBtn').style.display='none';
+    return;
+  }
+
+  // If GPS required, start verifying immediately
+  if(openSession.gps && openSession.gps.required){
+    startGpsVerification(openSession);
   } else {
-    // GPS not required — go straight to form, but still try to get location silently
-    let gpsResult = null;
-    if(session.gps && !session.gps.required){
-      try{ const pos=await getGps(); const dist=Math.round(distMetres(pos.lat,pos.lng,session.gps.lat,session.gps.lng)); gpsResult={lat:pos.lat,lng:pos.lng,dist,acc:pos.acc,verified:dist<=session.gps.radius}; }catch(e){}
-    }
-    renderCheckinForm(wrap, course, session, gpsResult);
+    setTimeout(()=>nameInput.focus(),80);
   }
 }
 
-function getCourseById(id){ const d=JSON.parse(localStorage.getItem('attTracker4')||'null')||{courses:[]}; return d.courses.find(c=>c.id===id); }
-function getSessionById(cId,sId){ const c=getCourseById(cId); return c?c.sessions.find(s=>s.id===sId):null; }
+async function startGpsVerification(session){
+  const resultDiv = document.getElementById('ciResultMsg');
+  const submitBtn = document.getElementById('ciSubmitBtn');
+  submitBtn.disabled=true;
+  resultDiv.style.display='block';
+  resultDiv.className='ci-result loading';
+  resultDiv.innerHTML=`<div class="gps-loading"><div style="font-size:.9rem">📍 Verifying your location…</div><div class="gps-bar"><div class="gps-bar-fill"></div></div><div style="font-size:.76rem;opacity:.7">Please allow location access when prompted</div></div>`;
 
-function renderCheckinForm(wrap, course, session, gpsResult){
-  const gpsNote = gpsResult
-    ? `<div style="display:flex;align-items:center;gap:6px;font-size:.75rem;${gpsResult.verified?'color:var(--present)':'color:var(--warn)'}">
-        ${gpsResult.verified?'✅':'⚠️'} Location verified — ${gpsResult.dist}m from venue (±${gpsResult.acc}m accuracy)
-       </div>`
-    : (session.gps ? `<div style="font-size:.75rem;color:var(--text-dim)">📍 Location not available</div>` : '');
+  try{
+    const pos = await getGps();
+    const dist = Math.round(distMetres(pos.lat,pos.lng,session.gps.lat,session.gps.lng));
+    const inside = dist <= session.gps.radius;
+    portalGpsResult = {lat:pos.lat,lng:pos.lng,dist,acc:pos.acc,verified:inside};
 
-  wrap.innerHTML=`
-    <h2>Check In</h2>
-    <div class="ci-sub">${session.label} · ${fmtDate(session.date)}</div>
-    ${gpsNote}
-    <div style="display:flex;flex-direction:column;gap:7px">
-      <label style="font-size:.78rem;color:var(--text-dim)">Your full name</label>
-      <input type="text" class="ci-name-input" id="ciInput" placeholder="e.g. Jane Smith" autocomplete="name" autofocus>
-    </div>
-    <button class="ci-submit" id="ciBtn">Check In →</button>
-    <div id="ciMsg" style="display:none"></div>`;
-
-  document.getElementById('ciBtn').onclick = () => submitCheckin(course.id, session.id, gpsResult);
-  document.getElementById('ciInput').addEventListener('keydown', e=>{if(e.key==='Enter') submitCheckin(course.id, session.id, gpsResult);});
+    if(!inside){
+      resultDiv.className='ci-result err';
+      resultDiv.innerHTML=`📍 You appear to be <strong>${dist}m</strong> from the venue.<br>You must be within <strong>${session.gps.radius}m</strong> to check in.<br><span style="font-size:.8rem;font-weight:400">Make sure you're at the correct location.</span>`;
+      submitBtn.disabled=true;
+      // Add retry
+      const retry=document.createElement('button');
+      retry.className='btn';retry.style.cssText='margin-top:8px;width:100%';retry.textContent='↺ Try Again';
+      retry.onclick=()=>{ resultDiv.innerHTML=''; resultDiv.style.display='none'; startGpsVerification(session); };
+      resultDiv.after(retry);
+    } else {
+      resultDiv.className='ci-result ok';
+      resultDiv.innerHTML=`✅ Location verified — ${dist}m from venue (±${pos.acc}m accuracy)`;
+      submitBtn.disabled=false;
+      document.getElementById('ciNameInput').focus();
+    }
+  } catch(e){
+    portalGpsResult=null;
+    resultDiv.className='ci-result warn';
+    resultDiv.innerHTML=`⚠️ Could not access your location.<br><span style="font-size:.8rem;font-weight:400">Enable location permissions and try again.</span>`;
+    const retry=document.createElement('button');
+    retry.className='btn';retry.style.cssText='margin-top:8px;width:100%';retry.textContent='↺ Try Again';
+    retry.onclick=()=>{ resultDiv.style.display='none'; const r=document.querySelector('#stepName .btn.retry-btn'); if(r)r.remove(); startGpsVerification(session); };
+    resultDiv.after(retry);
+  }
 }
 
-async function submitCheckin(courseId, sessionId, gpsResult){
-  const input=document.getElementById('ciInput');
-  const btn=document.getElementById('ciBtn');
-  const msg=document.getElementById('ciMsg');
-  const name=input.value.trim();
+function backToCourseSelect(){
+  document.getElementById('stepName').style.display='none';
+  document.getElementById('stepCourse').style.display='flex';
+  portalCourseId=null; portalSessionId=null;
+  renderPortal();
+}
+
+async function portalSubmit(){
+  const nameInput=document.getElementById('ciNameInput');
+  const submitBtn=document.getElementById('ciSubmitBtn');
+  const resultDiv=document.getElementById('ciResultMsg');
+  const name=nameInput.value.trim();
   if(!name)return;
 
-  btn.disabled=true;
-  msg.style.display='block';
-  msg.className='ci-result loading';
-  msg.textContent='⏳ Matching your name…';
+  // Re-fetch fresh data
+  const fresh=JSON.parse(localStorage.getItem('att5')||'null')||{courses:[],pin:'1234'};
+  const course=fresh.courses.find(c=>c.id===portalCourseId);
+  const session=course?course.sessions.find(s=>s.id===portalSessionId):null;
 
-  const fresh=JSON.parse(localStorage.getItem('attTracker4')||'null')||{courses:[]};
-  const course=fresh.courses.find(c=>c.id===courseId);
-  const session=course?course.sessions.find(s=>s.id===sessionId):null;
+  if(!course||!session||!session.checkinOpen){
+    resultDiv.style.display='block';resultDiv.className='ci-result err';
+    resultDiv.textContent='🔒 Check-in has been closed.';return;
+  }
 
-  if(!course||!session){msg.className='ci-result err';msg.textContent='❌ Session not found.';btn.disabled=false;return;}
-  if(!session.checkinOpen){msg.className='ci-result err';msg.textContent='🔒 Check-in has been closed.';btn.disabled=false;return;}
+  submitBtn.disabled=true;
+  resultDiv.style.display='block';
+  resultDiv.className='ci-result loading';
+  resultDiv.textContent='⏳ Matching your name…';
 
-  // Name matching via Claude
   const studentList=course.students.map(s=>s.name).join(', ');
   let matchedStudent=null;
   try{
     const resp=await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
+      method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:150,
+        model:'claude-sonnet-4-20250514',max_tokens:150,
         messages:[{role:'user',content:`You are a student name matcher for a university attendance system. Student typed: "${name}". Enrolled students: ${studentList}. Match even with typos, nicknames, partial names, or name order differences. Reply ONLY with valid JSON: {"matched":true,"name":"Exact Name From List"} or {"matched":false}. No other text.`}]
       })
     });
@@ -440,43 +615,43 @@ async function submitCheckin(courseId, sessionId, gpsResult){
   }
 
   if(!matchedStudent){
-    msg.className='ci-result err';
-    msg.textContent=`❌ "${name}" doesn't match any enrolled student. Check your spelling.`;
-    btn.disabled=false;return;
+    resultDiv.className='ci-result err';
+    resultDiv.textContent=`❌ "${name}" doesn't match any enrolled student. Check your spelling.`;
+    submitBtn.disabled=false;return;
   }
 
   if(session.records[matchedStudent.id]==='present'){
-    msg.className='ci-result ok';
-    msg.textContent=`✅ ${matchedStudent.name} — you're already checked in!`;
-    btn.disabled=false;return;
+    resultDiv.className='ci-result ok';
+    resultDiv.textContent=`✅ ${matchedStudent.name} — you're already checked in!`;
+    submitBtn.disabled=false;return;
   }
 
   session.records[matchedStudent.id]='present';
-  if(!session.checkinLog) session.checkinLog=[];
-  session.checkinLog.push({
-    name:matchedStudent.name,
-    time:new Date().toISOString(),
-    gps: gpsResult ? {dist:gpsResult.dist, verified:gpsResult.verified, acc:gpsResult.acc} : null
-  });
+  if(!session.checkinLog)session.checkinLog=[];
+  session.checkinLog.push({name:matchedStudent.name,time:new Date().toISOString(),gps:portalGpsResult?{dist:portalGpsResult.dist,verified:portalGpsResult.verified,acc:portalGpsResult.acc}:null});
 
-  const ci=fresh.courses.findIndex(c=>c.id===courseId);
-  const si=fresh.courses[ci].sessions.findIndex(s=>s.id===sessionId);
+  const ci=fresh.courses.findIndex(c=>c.id===portalCourseId);
+  const si=fresh.courses[ci].sessions.findIndex(s=>s.id===portalSessionId);
   fresh.courses[ci].sessions[si]=session;
-  localStorage.setItem('attTracker4',JSON.stringify(fresh));
+  localStorage.setItem('att5',JSON.stringify(fresh));
 
-  msg.className='ci-result ok';
-  msg.textContent=`✅ Welcome, ${matchedStudent.name}! You're checked in.`;
-  if(gpsResult && gpsResult.verified) msg.textContent+=` 📍 Location verified.`;
-  input.disabled=true;
-  btn.style.display='none';
+  resultDiv.className='ci-result ok';
+  let msg=`✅ Welcome, ${matchedStudent.name}! You're checked in.`;
+  if(portalGpsResult?.verified) msg+=` 📍 Location verified.`;
+  resultDiv.textContent=msg;
+  nameInput.disabled=true;
+  submitBtn.style.display='none';
 }
 
-// ══════════════════════════════════════
-// SIDEBAR
-// ══════════════════════════════════════
+document.getElementById('ciSubmitBtn').onclick=portalSubmit;
+document.getElementById('ciNameInput').addEventListener('keydown',e=>{if(e.key==='Enter')portalSubmit();});
+
+// ══════════════════════════════════════════
+// ADMIN SIDEBAR
+// ══════════════════════════════════════════
 function renderSidebar(){
   const list=document.getElementById('courseList');
-  if(!data.courses.length){list.innerHTML='<div style="padding:12px;font-size:.78rem;color:var(--text-dim);text-align:center">No courses yet</div>';return;}
+  if(!data.courses.length){list.innerHTML='<div style="padding:11px;font-size:.78rem;color:var(--text-dim);text-align:center">No courses yet</div>';return;}
   list.innerHTML=data.courses.map(c=>`
     <div class="course-item ${c.id===activeCourseId?'active':''}" onclick="selectCourse('${c.id}')">
       <div><div class="cn">${c.name}</div>${c.code?`<div class="cc">${c.code}</div>`:''}</div>
@@ -486,21 +661,19 @@ function renderSidebar(){
 
 function selectCourse(id){
   activeCourseId=id;activeTab='attendance';activeSessionId=null;
-  const c=getCourse();
-  if(c&&c.sessions.length)activeSessionId=c.sessions[c.sessions.length-1].id;
+  const c=getCourse();if(c&&c.sessions.length)activeSessionId=c.sessions[c.sessions.length-1].id;
   renderSidebar();renderMain();
 }
 function deleteCourse(e,id){
-  e.stopPropagation();
-  if(!confirm('Delete this course and all its data?'))return;
+  e.stopPropagation();if(!confirm('Delete this course and all its data?'))return;
   data.courses=data.courses.filter(c=>c.id!==id);
   if(activeCourseId===id){activeCourseId=null;activeSessionId=null;}
   save();renderSidebar();renderMain();
 }
 
-// ══════════════════════════════════════
-// MAIN
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
+// ADMIN MAIN
+// ══════════════════════════════════════════
 function renderMain(){
   const main=document.getElementById('mainArea');
   const course=getCourse();
@@ -510,8 +683,9 @@ function renderMain(){
   }
   main.innerHTML=`
     <div class="main-toolbar">
-      <div style="flex:1"><div style="font-family:'DM Serif Display',serif;font-size:1.2rem">${course.name}</div>${course.code?`<div class="sub">${course.code}</div>`:''}</div>
+      <div style="flex:1"><div style="font-family:'DM Serif Display',serif;font-size:1.15rem">${course.name}</div>${course.code?`<div class="sub">${course.code}</div>`:''}</div>
       <button class="btn" onclick="openStudentModal()">+ Student</button>
+      <button class="btn" style="font-size:.76rem" onclick="openChangePinModal()">🔑 Change PIN</button>
     </div>
     <div class="tabs">
       <button class="tab ${activeTab==='attendance'?'active':''}" onclick="switchTab('attendance')">Attendance</button>
@@ -524,15 +698,15 @@ function renderMain(){
 }
 function switchTab(t){activeTab=t;renderMain();}
 
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 // ATTENDANCE PANEL
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 function renderAttPanel(course){
   const today=new Date().toISOString().split('T')[0];
   const session=getSession();
   let sel='';
   if(course.sessions.length){
-    sel=`<select onchange="selectSession(this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:.83rem;outline:none;font-family:'DM Sans',sans-serif">
+    sel=`<select onchange="selectSession(this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:.82rem;outline:none;font-family:'DM Sans',sans-serif">
       ${course.sessions.map(s=>`<option value="${s.id}" ${s.id===activeSessionId?'selected':''}>${s.label} — ${fmtDate(s.date)}</option>`).join('')}
     </select>`;
   }
@@ -550,14 +724,10 @@ function renderAttPanel(course){
         const rec=session.records[st.id]||'none';
         const logEntry=session.checkinLog&&session.checkinLog.find(l=>l.name===st.name);
         const gpsBadge=logEntry
-          ?(logEntry.gps
-            ?(logEntry.gps.verified
-              ?`<span style="font-size:.75rem;color:var(--present)">✅ ${logEntry.gps.dist}m</span>`
-              :`<span style="font-size:.75rem;color:var(--warn)">⚠️ ${logEntry.gps.dist}m</span>`)
-            :`<span style="font-size:.75rem;color:var(--text-dim)">—</span>`)
-          :`<span style="font-size:.75rem;color:var(--text-dim)">—</span>`;
+          ?(logEntry.gps?(logEntry.gps.verified?`<span style="font-size:.74rem;color:var(--present)">✅ ${logEntry.gps.dist}m</span>`:`<span style="font-size:.74rem;color:var(--warn)">⚠️ ${logEntry.gps.dist}m</span>`):`<span style="font-size:.74rem;color:var(--text-dim)">—</span>`)
+          :`<span style="font-size:.74rem;color:var(--text-dim)">—</span>`;
         return`<tr>
-          <td><span style="font-weight:500">${st.name}</span>${st.sid?`<span style="font-family:'DM Mono',monospace;font-size:.68rem;color:var(--text-dim);margin-left:7px">${st.sid}</span>`:''}</td>
+          <td><span style="font-weight:500">${st.name}</span>${st.sid?`<span style="font-family:'DM Mono',monospace;font-size:.67rem;color:var(--text-dim);margin-left:6px">${st.sid}</span>`:''}</td>
           <td>${logEntry?`<span class="ci-badge checked">✓ checked in</span>`:`<span class="ci-badge pending">—</span>`}</td>
           <td>${gpsBadge}</td>
           <td><div style="display:flex;gap:5px">
@@ -575,19 +745,14 @@ function renderAttPanel(course){
   let openBar='';
   if(session?.checkinOpen){
     const gps=session.gps;
-    const gpsInfo=gps
-      ?(gps.required
-        ?`<span class="gps-tag">📍 GPS required · ${gps.radius}m radius</span>`
-        :`<span class="gps-tag">📍 GPS logged · ${gps.radius}m radius</span>`)
-      :`<span class="gps-tag" style="opacity:.5">No GPS</span>`;
+    const gpsInfo=gps?(gps.required?`<span class="gps-tag">🛡 GPS enforced · ${gps.radius}m</span>`:`<span class="gps-tag">📍 GPS logged · ${gps.radius}m</span>`):`<span class="gps-tag" style="opacity:.4">No GPS</span>`;
     openBar=`<div class="open-bar"><div class="pulse"></div><span class="olabel">Check-in is open</span>${gpsInfo}</div>`;
   }
-
   return`
-    <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       ${sel}
       <input type="date" id="nsd" value="${today}">
-      <input type="text" id="nsl" placeholder="Label (e.g. Lecture 1)" style="width:150px">
+      <input type="text" id="nsl" placeholder="Label (e.g. Lecture 1)" style="width:145px">
       <button class="btn primary" onclick="addSession()">+ Session</button>
       ${openBtn}
       ${session?`<button class="btn danger" style="margin-left:auto" onclick="deleteSession('${session.id}')">Delete</button>`:''}
@@ -616,33 +781,29 @@ function setStatus(sessionId,studentId,status){
   save();renderMain();
 }
 
-// ══════════════════════════════════════
-// OPEN CHECK-IN MODAL (GPS SETUP)
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
+// OPEN CHECK-IN MODAL
+// ══════════════════════════════════════════
 function openOpenCheckinModal(){
-  document.getElementById('gpsLat').value='';
-  document.getElementById('gpsLng').value='';
-  document.getElementById('gpsRadius').value=100;
-  document.getElementById('gpsRequired').checked=true;
-  const info=document.getElementById('gpsCapInfo');
-  info.className='gps-info';info.textContent='';
+  document.getElementById('gpsLat').value='';document.getElementById('gpsLng').value='';
+  document.getElementById('gpsRadius').value=100;document.getElementById('gpsRequired').checked=true;
+  const info=document.getElementById('gpsCapInfo');info.className='gps-info';info.textContent='';
   document.getElementById('openCheckinModal').classList.add('open');
 }
 function closeOpenCheckinModal(){document.getElementById('openCheckinModal').classList.remove('open');}
 
 async function captureTeacherGps(){
   const info=document.getElementById('gpsCapInfo');
-  info.className='gps-info show';
-  info.textContent='📍 Getting your location…';
+  info.className='gps-info show';info.textContent='📍 Getting your location…';
   try{
     const pos=await getGps();
     document.getElementById('gpsLat').value=pos.lat.toFixed(7);
     document.getElementById('gpsLng').value=pos.lng.toFixed(7);
     info.className='gps-info show ok';
-    info.textContent=`✅ Location captured: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)} (±${pos.acc}m accuracy)`;
+    info.textContent=`✅ Captured: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)} (±${pos.acc}m)`;
   }catch(e){
     info.className='gps-info show err';
-    info.textContent=`❌ Could not get location: ${e.message}. Enter coordinates manually.`;
+    info.textContent=`❌ Could not get location: ${e.message}. Enter manually.`;
   }
 }
 
@@ -651,24 +812,15 @@ function confirmOpenCheckin(){
   const lng=parseFloat(document.getElementById('gpsLng').value);
   const radius=parseInt(document.getElementById('gpsRadius').value)||100;
   const required=document.getElementById('gpsRequired').checked;
-
   const session=getSession();if(!session)return;
-
-  if(!isNaN(lat)&&!isNaN(lng)){
-    session.gps={lat,lng,radius,required};
-  }else{
-    session.gps=null;
-  }
+  session.gps=(!isNaN(lat)&&!isNaN(lng))?{lat,lng,radius,required}:null;
   session.checkinOpen=true;
-  save();
-  closeOpenCheckinModal();
-  renderMain();
-  showQrModal();
+  save();closeOpenCheckinModal();renderMain();showQrModal();
 }
 
-// ══════════════════════════════════════
-// CHECK-IN CLOSE / QR
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
+// CLOSE CHECK-IN / QR
+// ══════════════════════════════════════════
 function closeCheckin(){
   const s=getSession();if(!s)return;
   s.checkinOpen=false;save();
@@ -677,32 +829,23 @@ function closeCheckin(){
 }
 
 function showQrModal(){
-  const course=getCourse(),session=getSession();
-  if(!course||!session)return;
-  const url=`${location.href.split('?')[0]}?checkin=${session.id}&course=${course.id}`;
+  const course=getCourse(),session=getSession();if(!course||!session)return;
+  // QR points to the main URL (student portal), no special params needed
+  const url=location.href.split('?')[0];
   document.getElementById('qrTitle').textContent=course.name;
   document.getElementById('qrSub').textContent=`${session.label} · ${fmtDate(session.date)}`;
-
-  // GPS tag
   const gpsTag=document.getElementById('qrGpsTag');
-  if(session.gps){
-    gpsTag.style.display='flex';
-    gpsTag.textContent=session.gps.required?`🛡 GPS enforced · ${session.gps.radius}m`:`📍 GPS logged · ${session.gps.radius}m`;
-  }else{
-    gpsTag.style.display='none';
-  }
-
-  const qrEl=document.getElementById('qrcode');
-  qrEl.innerHTML='';
+  if(session.gps){gpsTag.style.display='flex';gpsTag.textContent=session.gps.required?`🛡 GPS enforced · ${session.gps.radius}m`:`📍 GPS logged · ${session.gps.radius}m`;}
+  else{gpsTag.style.display='none';}
+  const qrEl=document.getElementById('qrcode');qrEl.innerHTML='';
   new QRCode(qrEl,{text:url,width:200,height:200,colorDark:'#0f0e0c',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
   document.getElementById('qrModal').classList.add('open');
   updateQrList();
   clearInterval(pollInterval);
   pollInterval=setInterval(()=>{
-    data=JSON.parse(localStorage.getItem('attTracker4')||'null')||{courses:[]};
+    data=JSON.parse(localStorage.getItem('att5')||'null')||{courses:[],pin:'1234'};
     updateQrList();
-    const panel=document.getElementById('panelA');
-    const c2=getCourse();if(panel&&c2)panel.innerHTML=renderAttPanel(c2);
+    const panel=document.getElementById('panelA');const c2=getCourse();if(panel&&c2)panel.innerHTML=renderAttPanel(c2);
   },2000);
 }
 
@@ -712,23 +855,21 @@ function updateQrList(){
   document.getElementById('qrCount').textContent=log.length;
   document.getElementById('qrNames').innerHTML=log.length
     ?log.map(l=>{
-      const gpsIcon=l.gps
-        ?(l.gps.verified?`<span class="gps-ok">✅ ${l.gps.dist}m</span>`:`<span class="gps-warn">⚠️ ${l.gps.dist}m</span>`)
-        :'';
+      const gpsIcon=l.gps?(l.gps.verified?`<span style="color:var(--present);font-size:.74rem">✅ ${l.gps.dist}m</span>`:`<span style="color:var(--warn);font-size:.74rem">⚠️ ${l.gps.dist}m</span>`):'';
       return`<div class="ci-name-row"><span style="color:var(--present)">✓</span><span style="flex:1">${l.name}</span>${gpsIcon}</div>`;
     }).join('')
-    :`<div style="font-size:.79rem;color:var(--text-dim);padding:5px 0">Waiting for students…</div>`;
+    :`<div style="font-size:.78rem;color:var(--text-dim);padding:5px 0">Waiting for students…</div>`;
 }
 
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 // STUDENTS PANEL
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 function renderStudentsPanel(course){
   if(!course.students.length)return`<div class="empty"><div class="icon">👥</div><h3>No students enrolled</h3><p>Add students with the toolbar button.</p></div>`;
   return`<div style="display:flex;flex-direction:column;gap:7px">${course.students.map(st=>`
     <div class="st-row">
       <div class="avatar">${st.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}</div>
-      <div><div style="font-weight:500;font-size:.87rem">${st.name}</div>${st.sid?`<div style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--text-dim)">${st.sid}</div>`:''}</div>
+      <div><div style="font-weight:500;font-size:.86rem">${st.name}</div>${st.sid?`<div style="font-family:'DM Mono',monospace;font-size:.69rem;color:var(--text-dim)">${st.sid}</div>`:''}</div>
       <button class="del-btn" onclick="deleteStudent('${st.id}')">✕</button>
     </div>`).join('')}</div>`;
 }
@@ -738,9 +879,9 @@ function deleteStudent(id){
   c.sessions.forEach(s=>{delete s.records[id];});save();renderMain();
 }
 
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 // SUMMARY PANEL
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 function renderSummaryPanel(course){
   if(!course.students.length||!course.sessions.length)return`<div class="empty"><div class="icon">📊</div><h3>No data yet</h3><p>Add students and sessions to see the summary.</p></div>`;
   let tp=0,te=0,tr=0;
@@ -763,7 +904,7 @@ function renderSummaryPanel(course){
     <div class="table-wrap"><table>
       <thead><tr><th>Student</th><th>Present</th><th>Absent</th><th>Excused</th><th>Rate</th></tr></thead>
       <tbody>${ss.map(st=>{const b=st.pct>=75?'good':st.pct>=50?'warn':'bad';return`<tr>
-        <td style="font-weight:500">${st.name}${st.sid?`<span style="font-family:'DM Mono',monospace;font-size:.68rem;color:var(--text-dim);margin-left:7px">${st.sid}</span>`:''}</td>
+        <td style="font-weight:500">${st.name}${st.sid?`<span style="font-family:'DM Mono',monospace;font-size:.67rem;color:var(--text-dim);margin-left:6px">${st.sid}</span>`:''}</td>
         <td style="color:var(--present);font-weight:600">${st.p}</td>
         <td style="color:var(--absent);font-weight:600">${st.a}</td>
         <td style="color:var(--excused);font-weight:600">${st.e}</td>
@@ -772,9 +913,9 @@ function renderSummaryPanel(course){
     </table></div>`;
 }
 
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 // COURSE / STUDENT MODALS
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
 function openCourseModal(){document.getElementById('courseName').value='';document.getElementById('courseCode').value='';document.getElementById('courseModal').classList.add('open');setTimeout(()=>document.getElementById('courseName').focus(),50);}
 function closeCourseModal(){document.getElementById('courseModal').classList.remove('open');}
 function addCourse(){
@@ -791,24 +932,30 @@ function addStudent(){
   getCourse().students.push({id:uid(),name,sid});save();closeStudentModal();renderMain();
 }
 
-// ══════════════════════════════════════
-// KEYBOARD / BOOT
-// ══════════════════════════════════════
+// ══════════════════════════════════════════
+// KEYBOARD
+// ══════════════════════════════════════════
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     closeCourseModal();closeStudentModal();closeOpenCheckinModal();
+    closeAdminLogin();
     document.getElementById('qrModal').classList.remove('open');
+    document.getElementById('changePinModal').classList.remove('open');
     clearInterval(pollInterval);
   }
 });
 document.getElementById('courseModal').addEventListener('keydown',e=>{if(e.key==='Enter')addCourse();});
 document.getElementById('studentModal').addEventListener('keydown',e=>{if(e.key==='Enter')addStudent();});
+document.getElementById('adminPinInput').addEventListener('keydown',e=>{if(e.key==='Enter')submitAdminLogin();});
 
-if(isCheckinMode()){
-  showCheckinPage();
-}else{
-  renderSidebar();
-  if(data.courses.length)selectCourse(data.courses[0].id);else renderMain();
+// ══════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════
+if(adminAuthed){
+  enterAdminDashboard();
+} else {
+  showScreen('studentPortal');
+  renderPortal();
 }
 </script>
 </body>
