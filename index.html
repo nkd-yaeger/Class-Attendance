@@ -405,7 +405,10 @@ tbody td{padding:8px 12px;vertical-align:middle;}
       <div style="font-size:.67rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text-dim);margin-bottom:7px">Checked in (<span id="qrCount">0</span>)</div>
       <div class="ci-names-list" id="qrNames"></div>
     </div>
-    <button class="btn danger" style="width:100%;padding:10px" onclick="closeCheckin()">⏹ Close Check-in</button>
+    <div style="display:flex;gap:8px;width:100%">
+      <button class="btn" style="flex:1;padding:10px" onclick="hideQrModal()">✕ Hide QR</button>
+      <button class="btn danger" style="flex:1;padding:10px" onclick="closeCheckin()">⏹ Close Check-in</button>
+    </div>
   </div>
 </div>
 
@@ -944,7 +947,7 @@ function renderAttPanel(course){
   let openBtn='';
   if(session){
     openBtn=session.checkinOpen
-      ?`<button class="btn open-active" onclick="showQrModal()">📱 QR Live</button><button class="btn danger" onclick="closeCheckin()">⏹ Close</button>`
+      ?`<button class="btn open-active" onclick="showQrModal()">📱 Show QR</button><button class="btn danger" onclick="closeCheckin()">⏹ Close</button>`
       :`<button class="btn success" onclick="openOpenCheckinModal()">📲 Open Check-in</button>`;
   }
   let table='';
@@ -979,6 +982,7 @@ function renderAttPanel(course){
       <input type="text" id="nsl" placeholder="Label (e.g. Lecture 1)" style="width:145px">
       <button class="btn primary" onclick="addSession()">+ Session</button>
       ${openBtn}
+      ${session&&(session.checkinLog||[]).length?`<button class="btn" onclick="exportCheckinCsv()" title="Download check-in list as CSV">⬇ Export CSV</button>`:''}
       ${session?`<button class="btn danger" style="margin-left:auto" onclick="deleteSession('${session.id}')">Delete</button>`:''}
     </div>
     ${openBar}
@@ -1042,6 +1046,10 @@ async function closeCheckin(){
   await saveToBin(true); // flush so QR code stops working immediately
   document.getElementById('qrModal').classList.remove('open');renderMain();
 }
+function hideQrModal(){
+  document.getElementById('qrModal').classList.remove('open');
+  // check-in stays open — students can still check in via the URL
+}
 function showQrModal(){
   const course=getCourse(),session=getSession();if(!course||!session)return;
   const url=location.href.split('?')[0];
@@ -1068,8 +1076,35 @@ function updateQrList(){
 }
 
 // ══════════════════════════════════════════
-// STUDENTS PANEL
+// EXPORT CHECK-IN CSV
 // ══════════════════════════════════════════
+function exportCheckinCsv(){
+  const course=getCourse(), session=getSession();
+  if(!course||!session)return;
+  const log=session.checkinLog||[];
+  if(!log.length){alert('No check-ins recorded for this session.');return;}
+
+  // Build rows
+  const headers=['Student Number','Name','Check-in Time','GPS Distance (m)','GPS Verified','Session','Date'];
+  const rows=log.map(l=>{
+    const time=l.time?new Date(l.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+    const gpsDist=l.gps?l.gps.dist:'';
+    const gpsVerified=l.gps?(l.gps.verified?'Yes':'No'):'';
+    return[l.sid||'', l.name||'', time, gpsDist, gpsVerified, session.label||'', fmtDate(session.date)];
+  });
+
+  // Escape a CSV cell value
+  const esc=v=>{const s=String(v);return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:`${s}`;};
+  const csv=[headers, ...rows].map(r=>r.map(esc).join(',')).join('\r\n');
+
+  // Trigger download
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const safeName=(course.name+' — '+session.label).replace(/[^a-z0-9 \-]/gi,'_');
+  a.href=url; a.download=`${safeName}.csv`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 function renderStudentsPanel(course){
   if(!course.students.length)return`<div class="empty"><div class="icon">👥</div><h3>No students enrolled</h3><p>Add individually or use the Upload List button.</p></div>`;
   return`
@@ -1155,7 +1190,7 @@ function addStudent(){
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     closeCourseModal();closeStudentModal();closeOpenCheckinModal();closeAdminLogin();closeUploadModal();
-    document.getElementById('qrModal').classList.remove('open');
+    hideQrModal();
     document.getElementById('changePinModal').classList.remove('open');
   }
 });
