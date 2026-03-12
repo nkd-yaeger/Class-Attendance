@@ -411,24 +411,63 @@ tbody td{padding:8px 12px;vertical-align:middle;}
 
 <script>
 // ══════════════════════════════════════════
-// JSONBIN
+// JSONBIN CONFIG
 // ══════════════════════════════════════════
 const BIN_ID  = '69b136f3aa77b81da9d606ab';
 const API_KEY = '$2a$10$e.pdk6783q5J4fLg7CJ6he2AdoDFiWmhdHshjXykPmt0p0n9xF.QO';
 const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
+// ── STATE ──────────────────────────────────
 let data = {courses:[], pin:'1234'};
 let adminAuthed = sessionStorage.getItem('adminAuthed')==='yes';
 let activeCourseId=null, activeTab='attendance', activeSessionId=null;
 let pollInterval=null, portalPollInterval=null;
 let portalCourseId=null, portalSessionId=null, portalGpsResult=null;
-let isSaving=false;
 let parsedUploadStudents=[];
 
+// ── SAVE: debounced so rapid changes collapse into one request ──
+let _saveTimer=null, _saveInFlight=false, _pendingSave=false;
+
+function scheduleSave(){
+  // Mark dirty immediately so the UI shows "Unsaved"
+  setSyncStatus('adminSyncDot','adminSyncLabel','syncing','Unsaved…');
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(()=>_flushSave(), 1500); // wait 1.5 s of inactivity
+}
+
+async function _flushSave(){
+  if(_saveInFlight){ _pendingSave=true; return; }
+  _saveInFlight=true;
+  setSyncStatus('adminSyncDot','adminSyncLabel','syncing','Saving…');
+  try{
+    const r=await fetch(BIN_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':API_KEY},body:JSON.stringify(data)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    setSyncStatus('adminSyncDot','adminSyncLabel','ok','Saved ✓');
+  }catch(e){
+    setSyncStatus('adminSyncDot','adminSyncLabel','err','Save failed!');
+    alert('⚠️ Failed to save changes. Check your internet connection.');
+  }finally{
+    _saveInFlight=false;
+    if(_pendingSave){ _pendingSave=false; _flushSave(); }
+  }
+}
+
+// saveToBin() — called by all write operations; debounces automatically
+// Pass flush=true only when the save must complete before proceeding (e.g. check-in submit)
+async function saveToBin(flush=false){
+  if(flush){
+    clearTimeout(_saveTimer);
+    await _flushSave();
+  } else {
+    scheduleSave();
+  }
+}
+
+// ── LOAD ───────────────────────────────────
 function setSyncStatus(dotId, labelId, state, msg){
   const dot=document.getElementById(dotId), label=document.getElementById(labelId);
   if(dot) dot.className='sync-dot '+state;
-  if(label){label.textContent=msg;}
+  if(label) label.textContent=msg;
 }
 
 async function loadFromBin(){
@@ -436,8 +475,8 @@ async function loadFromBin(){
     const r=await fetch(BIN_URL+'/latest',{headers:{'X-Master-Key':API_KEY,'X-Bin-Meta':'false'}});
     if(!r.ok) throw new Error('HTTP '+r.status);
     data=await r.json();
-    if(!data.pin)data.pin='1234';
-    if(!data.courses)data.courses=[];
+    if(!data.pin) data.pin='1234';
+    if(!data.courses) data.courses=[];
     setSyncStatus('syncDot','syncLabel','ok','Synced');
     setSyncStatus('adminSyncDot','adminSyncLabel','ok','Synced');
     return true;
@@ -448,18 +487,10 @@ async function loadFromBin(){
   }
 }
 
-async function saveToBin(){
-  if(isSaving)return;
-  isSaving=true;
-  setSyncStatus('adminSyncDot','adminSyncLabel','syncing','Saving…');
-  try{
-    const r=await fetch(BIN_URL,{method:'PUT',headers:{'Content-Type':'application/json','X-Master-Key':API_KEY},body:JSON.stringify(data)});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    setSyncStatus('adminSyncDot','adminSyncLabel','ok','Saved ✓');
-  }catch(e){
-    setSyncStatus('adminSyncDot','adminSyncLabel','err','Save failed!');
-    alert('⚠️ Failed to save. Check your internet connection.');
-  }finally{isSaving=false;}
+// ── POLLING helpers ────────────────────────
+// Returns true if any session in any course has check-in open
+function anyCheckinOpen(){
+  return data.courses.some(c=>c.sessions.some(s=>s.checkinOpen));
 }
 
 // ══════════════════════════════════════════
@@ -511,7 +542,7 @@ function submitAdminLogin(){
 }
 function adminLogout(){
   adminAuthed=false;sessionStorage.removeItem('adminAuthed');
-  clearInterval(pollInterval);
+  clearInterval(pollInterval);clearInterval(portalPollInterval);
   showScreen('studentPortal');renderPortal();startPortalPolling();
 }
 function enterAdminDashboard(){
@@ -519,13 +550,20 @@ function enterAdminDashboard(){
   showScreen('adminDashboard');
   renderSidebar();
   if(data.courses.length)selectCourse(data.courses[0].id);else renderMain();
+  startAdminPolling();
+}
+
+function startAdminPolling(){
   clearInterval(pollInterval);
+  // Poll every 5 s ONLY while a check-in session is open.
+  // When no check-in is open there is nothing real-time to watch, so we skip.
   pollInterval=setInterval(async()=>{
+    if(!anyCheckinOpen()) return; // no request fired
     await loadFromBin();
     const panel=document.getElementById('panelA');const c2=getCourse();
     if(panel&&c2)panel.innerHTML=renderAttPanel(c2);
     updateQrList();
-  },4000);
+  },5000);
 }
 
 function openChangePinModal(){
@@ -539,7 +577,7 @@ async function submitChangePin(){
   if(old!==data.pin){err.textContent='Current PIN incorrect.';err.style.display='block';return;}
   if(n.length<4){err.textContent='New PIN must be at least 4 characters.';err.style.display='block';return;}
   if(n!==c){err.textContent='PINs do not match.';err.style.display='block';return;}
-  data.pin=n;await saveToBin();
+  data.pin=n;saveToBin();
   document.getElementById('changePinModal').classList.remove('open');
   alert('PIN changed.');
 }
@@ -564,12 +602,23 @@ function renderPortal(){
 
 function startPortalPolling(){
   clearInterval(portalPollInterval);
-  portalPollInterval=setInterval(async()=>{await loadFromBin();renderPortal();},5000);
+  // Poll every 8 s, but only fire a network request when at least one
+  // check-in is currently open (or every 30 s as a slow heartbeat to pick
+  // up newly-opened sessions).
+  let slowTick=0;
+  portalPollInterval=setInterval(async()=>{
+    slowTick++;
+    const needsFetch = anyCheckinOpen() || slowTick>=6; // 6×8 s = 48 s heartbeat
+    if(!needsFetch) return;
+    slowTick=0;
+    await loadFromBin();
+    renderPortal();
+  },8000);
 }
 
 async function selectPortalCourse(courseId){
-  setSyncStatus('syncDot','syncLabel','syncing','Loading…');
-  await loadFromBin();
+  // Use in-memory data — portal polling keeps it fresh enough.
+  // No extra fetch needed just to show the form.
   const course=data.courses.find(c=>c.id===courseId);if(!course)return;
   const openSession=course.sessions.find(s=>s.checkinOpen);
   portalCourseId=courseId;portalSessionId=openSession?openSession.id:null;portalGpsResult=null;
@@ -654,6 +703,7 @@ async function portalSubmit(){
   resultDiv.style.display='block';resultDiv.className='ci-result loading';
   resultDiv.textContent='⏳ Loading latest data…';
 
+  // Fetch fresh data right before writing to avoid overwriting concurrent check-ins
   await loadFromBin();
   const course=data.courses.find(c=>c.id===portalCourseId);
   const session=course?course.sessions.find(s=>s.id===portalSessionId):null;
@@ -688,7 +738,8 @@ async function portalSubmit(){
     gps:portalGpsResult?{dist:portalGpsResult.dist,verified:portalGpsResult.verified,acc:portalGpsResult.acc}:null
   });
 
-  await saveToBin();
+  // Flush immediately — student must not see success until data is confirmed written
+  await saveToBin(true);
 
   resultDiv.className='ci-result ok';
   let msg=`✅ Checked in`;
@@ -820,7 +871,7 @@ async function confirmUpload(){
     added++;
   }
 
-  await saveToBin();
+  await saveToBin(true); // flush so data is written before alert
   closeUploadModal();
   renderMain();
   alert(`✅ Imported ${added} student${added!==1?'s':''}${skipped?` (${skipped} duplicates skipped)`:''}.`);
@@ -843,11 +894,11 @@ function selectCourse(id){
   const c=getCourse();if(c&&c.sessions.length)activeSessionId=c.sessions[c.sessions.length-1].id;
   renderSidebar();renderMain();
 }
-async function deleteCourse(e,id){
+function deleteCourse(e,id){
   e.stopPropagation();if(!confirm('Delete this course and all data?'))return;
   data.courses=data.courses.filter(c=>c.id!==id);
   if(activeCourseId===id){activeCourseId=null;activeSessionId=null;}
-  await saveToBin();renderSidebar();renderMain();
+  saveToBin();renderSidebar();renderMain();
 }
 
 // ══════════════════════════════════════════
@@ -934,24 +985,24 @@ function renderAttPanel(course){
     ${!session?`<div class="empty"><div class="icon">📅</div><h3>No sessions yet</h3><p>Create a session to start tracking.</p></div>`:table}`;
 }
 
-async function addSession(){
+function addSession(){
   const c=getCourse();if(!c)return;
   const date=document.getElementById('nsd').value;
   const label=document.getElementById('nsl').value.trim()||`Session ${c.sessions.length+1}`;
   const s={id:uid(),date,label,records:{},checkinOpen:false,checkinLog:[],gps:null};
-  c.sessions.push(s);activeSessionId=s.id;await saveToBin();renderMain();
+  c.sessions.push(s);activeSessionId=s.id;saveToBin();renderMain();
 }
 function selectSession(id){activeSessionId=id;renderMain();}
-async function deleteSession(id){
+function deleteSession(id){
   if(!confirm('Delete this session?'))return;
   const c=getCourse();c.sessions=c.sessions.filter(s=>s.id!==id);
   activeSessionId=c.sessions.length?c.sessions[c.sessions.length-1].id:null;
-  await saveToBin();renderMain();
+  saveToBin();renderMain();
 }
-async function setStatus(sessionId,studentId,status){
+function setStatus(sessionId,studentId,status){
   const c=getCourse();const s=c.sessions.find(x=>x.id===sessionId);if(!s)return;
   if(s.records[studentId]===status)delete s.records[studentId];else s.records[studentId]=status;
-  await saveToBin();renderMain();
+  saveToBin();renderMain();
 }
 
 // ══════════════════════════════════════════
@@ -981,11 +1032,14 @@ async function confirmOpenCheckin(){
   const session=getSession();if(!session)return;
   session.gps=(!isNaN(lat)&&!isNaN(lng))?{lat,lng,radius,required}:null;
   session.checkinOpen=true;
-  await saveToBin();closeOpenCheckinModal();renderMain();showQrModal();
+  await saveToBin(true); // flush so students see open check-in immediately
+  closeOpenCheckinModal();renderMain();showQrModal();
+  startAdminPolling(); // restart so polling activates now that a session is open
 }
 async function closeCheckin(){
   const s=getSession();if(!s)return;
-  s.checkinOpen=false;await saveToBin();
+  s.checkinOpen=false;
+  await saveToBin(true); // flush so QR code stops working immediately
   document.getElementById('qrModal').classList.remove('open');renderMain();
 }
 function showQrModal(){
@@ -1031,11 +1085,11 @@ function renderStudentsPanel(course){
       </tr>`).join('')}</tbody>
     </table></div>`;
 }
-async function deleteStudent(id){
+function deleteStudent(id){
   if(!confirm('Remove this student?'))return;
   const c=getCourse();c.students=c.students.filter(s=>s.id!==id);
   c.sessions.forEach(s=>{delete s.records[id];});
-  await saveToBin();renderMain();
+  saveToBin();renderMain();
 }
 
 // ══════════════════════════════════════════
@@ -1078,21 +1132,21 @@ function renderSummaryPanel(course){
 // ══════════════════════════════════════════
 function openCourseModal(){document.getElementById('courseName').value='';document.getElementById('courseCode').value='';document.getElementById('courseModal').classList.add('open');setTimeout(()=>document.getElementById('courseName').focus(),50);}
 function closeCourseModal(){document.getElementById('courseModal').classList.remove('open');}
-async function addCourse(){
+function addCourse(){
   const name=document.getElementById('courseName').value.trim();if(!name)return;
   const code=document.getElementById('courseCode').value.trim();
   data.courses.push({id:uid(),name,code,students:[],sessions:[]});
-  await saveToBin();closeCourseModal();renderSidebar();selectCourse(data.courses[data.courses.length-1].id);
+  saveToBin();closeCourseModal();renderSidebar();selectCourse(data.courses[data.courses.length-1].id);
 }
 function openStudentModal(){document.getElementById('studentSid').value='';document.getElementById('studentName').value='';document.getElementById('studentModal').classList.add('open');setTimeout(()=>document.getElementById('studentSid').focus(),50);}
 function closeStudentModal(){document.getElementById('studentModal').classList.remove('open');}
-async function addStudent(){
+function addStudent(){
   const sid=normSid(document.getElementById('studentSid').value);if(!sid){alert('Student number is required.');return;}
   const name=document.getElementById('studentName').value.trim();
   const course=getCourse();
   if(course.students.find(s=>normSid(s.sid)===sid)){alert(`Student ${sid} already exists in this course.`);return;}
   course.students.push({id:uid(),sid,name});
-  await saveToBin();closeStudentModal();renderMain();
+  saveToBin();closeStudentModal();renderMain();
 }
 
 // ══════════════════════════════════════════
