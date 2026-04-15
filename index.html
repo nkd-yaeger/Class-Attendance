@@ -82,13 +82,21 @@ textarea:focus{border-color:var(--accent);}
 .sync-dot.syncing{background:var(--accent);animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
 
-/* ADMIN */
-#adminDashboard{flex-direction:column;}
-.adm-header{padding:18px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;background:var(--surface);flex-wrap:wrap;}
-.adm-header h1{font-family:'DM Serif Display',serif;font-size:1.55rem;letter-spacing:-.02em;flex:1;}
-.badge{font-family:'DM Mono',monospace;font-size:.67rem;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--accent);padding:3px 9px;border-radius:3px;}
+/* RESIZABLE SIDEBAR */
 .adm-layout{display:flex;flex:1;overflow:hidden;}
-.sidebar{width:250px;min-width:250px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;}
+.sidebar{width:250px;min-width:140px;max-width:520px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:relative;flex-shrink:0;}
+.resize-handle{position:absolute;right:-4px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:10;display:flex;align-items:center;justify-content:center;}
+.resize-handle::after{content:'';display:block;width:2px;height:40px;background:var(--border);border-radius:2px;transition:background .15s;}
+.resize-handle:hover::after,.resize-handle.dragging::after{background:var(--accent);}
+
+/* CHECK STATUS CARD */
+.status-query-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 28px;display:flex;flex-direction:column;gap:14px;}
+.status-query-card h3{font-family:'DM Serif Display',serif;font-size:1.05rem;color:var(--text);}
+.status-result{padding:13px 16px;border-radius:8px;font-size:.88rem;font-weight:600;line-height:1.5;text-align:center;}
+.status-result.ok{background:rgba(76,175,125,.15);color:var(--present);border:1px solid rgba(76,175,125,.3);}
+.status-result.err{background:rgba(232,92,71,.15);color:var(--absent);border:1px solid rgba(232,92,71,.3);}
+.status-result.warn{background:rgba(232,163,71,.12);color:var(--warn);border:1px solid rgba(232,163,71,.3);}
+.status-result.loading{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);}
 .sidebar-head{padding:14px 16px 11px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
 .sidebar-head h2{font-size:.67rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);font-weight:500;}
 .btn-add{background:var(--accent);color:#0f0e0c;border:none;padding:5px 10px;border-radius:var(--radius);font-family:'DM Sans',sans-serif;font-size:.77rem;font-weight:700;cursor:pointer;transition:opacity .15s;}
@@ -231,6 +239,16 @@ tbody td{padding:8px 12px;vertical-align:middle;}
 
       <button class="btn primary" id="ciSubmitBtn" style="padding:12px;font-size:.95rem">Check In →</button>
       <div id="ciResultMsg" style="display:none"></div>
+
+      <!-- Check my status -->
+      <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:14px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:.78rem;color:var(--text-dim);font-weight:500">Already checked in? Verify your status:</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="statusSidInput" placeholder="Student number" autocomplete="off" style="flex:1;font-family:'DM Mono',monospace;font-size:.88rem;padding:8px 11px">
+          <button class="btn" onclick="queryCheckinStatus()" style="white-space:nowrap">Check status</button>
+        </div>
+        <div id="statusResult" style="display:none"></div>
+      </div>
     </div>
 
     <div class="portal-footer"><span class="admin-link" onclick="openAdminLogin()">Administrator login</span></div>
@@ -246,7 +264,8 @@ tbody td{padding:8px 12px;vertical-align:middle;}
     <button class="btn" style="margin-left:auto;font-size:.78rem" onclick="adminLogout()">← Student View</button>
   </div>
   <div class="adm-layout">
-    <div class="sidebar">
+    <div class="sidebar" id="adminSidebar">
+      <div class="resize-handle" id="resizeHandle"></div>
       <div class="sidebar-head"><h2>Courses</h2><button class="btn-add" onclick="openCourseModal()">+ Add</button></div>
       <div class="course-list" id="courseList"></div>
     </div>
@@ -1199,8 +1218,121 @@ function addStudent(){
 }
 
 // ══════════════════════════════════════════
-// KEYBOARD
+// CHECK-IN STATUS QUERY (student portal)
 // ══════════════════════════════════════════
+function queryCheckinStatus(){
+  const sid=normSid(document.getElementById('statusSidInput').value);
+  const resultDiv=document.getElementById('statusResult');
+  resultDiv.style.display='block';
+
+  if(!sid){
+    resultDiv.className='status-result err';
+    resultDiv.textContent='⚠️ Please enter your student number.';
+    return;
+  }
+
+  // Use in-memory data — no extra request needed
+  const course=data.courses.find(c=>c.id===portalCourseId);
+  const session=course?course.sessions.find(s=>s.id===portalSessionId):null;
+
+  if(!course||!session){
+    resultDiv.className='status-result warn';
+    resultDiv.textContent='No active session found for this course.';
+    return;
+  }
+
+  // Check if enrolled
+  const student=course.students.find(s=>normSid(s.sid)===sid);
+  if(!student){
+    resultDiv.className='status-result err';
+    resultDiv.innerHTML=`❌ <strong>${sid}</strong> is not enrolled in this course.`;
+    return;
+  }
+
+  // Check attendance record
+  const rec=session.records[student.id];
+  const logEntry=session.checkinLog&&session.checkinLog.find(l=>normSid(l.sid)===sid);
+
+  if(rec==='present'){
+    const timeStr=logEntry&&logEntry.time?` at ${(()=>{const h=+logEntry.time.slice(11,13),m=logEntry.time.slice(14,16),ap=h>=12?'PM':'AM',h12=h%12||12;return`${h12}:${m} ${ap}`;})()}`:'';
+    resultDiv.className='status-result ok';
+    resultDiv.innerHTML=`✅ <strong>${student.sid}</strong>${student.name?' — '+student.name:''}<br>Marked <strong>Present</strong>${timeStr}`;
+  } else if(rec==='excused'){
+    resultDiv.className='status-result warn';
+    resultDiv.innerHTML=`📋 <strong>${student.sid}</strong> — marked <strong>Excused</strong> for this session.`;
+  } else if(rec==='absent'){
+    resultDiv.className='status-result err';
+    resultDiv.innerHTML=`❌ <strong>${student.sid}</strong> — currently marked <strong>Absent</strong>.<br><span style="font-size:.82rem;font-weight:400">If this is wrong, ask your lecturer to update your record.</span>`;
+  } else {
+    resultDiv.className='status-result warn';
+    resultDiv.innerHTML=`⏳ <strong>${student.sid}</strong> — not yet recorded for this session.<br><span style="font-size:.82rem;font-weight:400">Check in above if you haven't already.</span>`;
+  }
+}
+
+// Enter key on status input
+document.getElementById('statusSidInput').addEventListener('keydown',e=>{if(e.key==='Enter')queryCheckinStatus();});
+
+// ══════════════════════════════════════════
+// RESIZABLE SIDEBAR
+// ══════════════════════════════════════════
+(function(){
+  const handle=document.getElementById('resizeHandle');
+  const sidebar=document.getElementById('adminSidebar');
+  if(!handle||!sidebar) return;
+
+  // Restore saved width
+  const saved=localStorage.getItem('sidebarWidth');
+  if(saved) sidebar.style.width=saved+'px';
+
+  let startX, startWidth;
+
+  handle.addEventListener('mousedown', e=>{
+    e.preventDefault();
+    startX=e.clientX;
+    startWidth=sidebar.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+
+    function onMove(e){
+      const delta=e.clientX-startX;
+      const newWidth=Math.min(520,Math.max(140,startWidth+delta));
+      sidebar.style.width=newWidth+'px';
+    }
+    function onUp(){
+      handle.classList.remove('dragging');
+      document.body.style.cursor='';
+      document.body.style.userSelect='';
+      localStorage.setItem('sidebarWidth',sidebar.offsetWidth);
+      document.removeEventListener('mousemove',onMove);
+      document.removeEventListener('mouseup',onUp);
+    }
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onUp);
+  });
+
+  // Touch support for tablets
+  handle.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    startX=e.touches[0].clientX;
+    startWidth=sidebar.offsetWidth;
+    handle.classList.add('dragging');
+
+    function onMove(e){
+      const delta=e.touches[0].clientX-startX;
+      const newWidth=Math.min(520,Math.max(140,startWidth+delta));
+      sidebar.style.width=newWidth+'px';
+    }
+    function onEnd(){
+      handle.classList.remove('dragging');
+      localStorage.setItem('sidebarWidth',sidebar.offsetWidth);
+      document.removeEventListener('touchmove',onMove);
+      document.removeEventListener('touchend',onEnd);
+    }
+    document.addEventListener('touchmove',onMove,{passive:false});
+    document.addEventListener('touchend',onEnd);
+  },{passive:false});
+})();
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     closeCourseModal();closeStudentModal();closeOpenCheckinModal();closeAdminLogin();closeUploadModal();
